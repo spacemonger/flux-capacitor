@@ -1,3 +1,137 @@
+void setup() {
+
+    CRated = 48Ah;
+    OCV = 12.7V; //Estimate for 12V lead-acid battery
+    Vlimit = 10.50V; //for 12V battery
+
+    SOH = ((CRated * SOH%error)/CRated)*100;
+
+    SOH%error = (OCV - V0)/(OCV- Vlimit);
+
+    V0 = getVoltage();
+    I0 = getCurrent();
+
+    SOC0 = OCV(V0);
+
+    DOD0 = SOH - SOC0;
+
+}
+
+void loop () { //should loop @ input frequency of >= 10Hz
+
+    Vb = getVoltage();
+    Ib = getCurrent();
+
+    switch(Ib){
+
+        case (Ib > 0):
+            display(Vb, Ib, discharging());
+            break;
+        case (Ib == 0):
+            display(Vb, Ib, SOC);
+            break;
+        case (Ib < 0):
+            display(Vb, Ib, charging());
+            break;
+        default: 
+            display(Vb, Ib, SOC);
+            break;
+
+    }
+
+
+}
+
+
+float getVoltage() {
+
+    return VADCgetVoltage;
+
+}
+
+float getCurrent() {
+
+    return IADCgetVoltage/Shunt;
+
+}
+
+float getTemperature() {
+
+    return TADCgetTemperature;
+
+}
+
+void display(float V, float I, u_int16 C){
+
+}
+
+int discharging(float V, float I){
+
+    if(V > Vlimit) {
+
+        DODnew = DOD0 + nd*(-(I0+Ib)/(CRated*SOH%error));
+        SOCnew = SOH - DODnew;
+        DOD0 = DODnew;
+        SOC0 = SOCnew
+        return SOCnew;
+
+    }
+    else {
+        SOH = DOD0;
+        return //should be change battery
+    }
+    
+}
+
+int charging(float V, float I){
+
+    if(V = VMax && I0 = IMin) {
+
+        SOH = SOC0;
+        return //should be fully charged
+
+    }
+    else {
+        DODnew = DOD0 + nc*(-(I0+Ib)/(CRated*SOH%error));
+        SOCnew = SOH - DODnew;
+        DOD0 = DODnew;
+        SOC0 = SOCnew
+        return SOCnew;
+    }
+}
+
+int OCV(float V){
+    switch(v)
+    {
+        case V <= 12.7 && V>=12.5:
+            return ((V-10.7)/2);
+        case V < 12.5 && V>=12.42:
+            return ((V-11.78)/0.8);
+        case V < 12.42 && V>=12.32:
+            return ((V-11.62)/1);
+        case V < 12.32 && V>=12.2:
+            return ((V-11.48)/1.2);
+        case V < 12.2 && V>=12.06:
+            return ((V-11.36)/1.4);
+        case V < 12.06 && V>=11.9:
+            return ((V-11.26)/1.6);
+        case V < 11.9 && V>=11.75:
+            return ((V-11.3)/1.5);
+        case V < 11.75 && V>=11.58:
+            return ((V-11.24)/1.7);
+        case V < 11.58 && V>=11.31:
+            return ((V-11.4)/2.7);
+        case V < 11.31 && V>=10.5:
+            return ((V-10.5)/8.1);
+        default:
+
+    }
+}
+
+weight() {
+
+}
+
 
 
 
