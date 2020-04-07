@@ -3,16 +3,16 @@ void setup() {
     CRated = 48Ah;
     OCV = 12.7V; //Estimate for 12V lead-acid battery
     Vlimit = 10.50V; //for 12V battery
+    VMax = OCV;
+    IMin = 0;
 
     SOH = ((CRated * SOH%error)/CRated)*100;
-
     SOH%error = (OCV - V0)/(OCV- Vlimit);
 
     V0 = getVoltage();
     I0 = getCurrent();
-
+    T0 = getTemperature();
     SOC0 = OCV(V0);
-
     DOD0 = SOH - SOC0;
 
 }
@@ -62,10 +62,14 @@ float getTemperature() {
 }
 
 void display(float V, float I, u_int16 C){
-
+    print("Voltage: " + V + "V");
+    print("Current: " + I + "A");
+    print("Capacity: " + C + "%");
 }
 
 int discharging(float V, float I){
+
+    nd = //Coefficent of discharge assumption with peukert's law, should be tested in matlab and real-life
 
     if(V > Vlimit) {
 
@@ -84,6 +88,8 @@ int discharging(float V, float I){
 }
 
 int charging(float V, float I){
+
+    nc = //Coefficient of charge assumption, should be tested in matlab and real-life
 
     if(V = VMax && I0 = IMin) {
 
@@ -127,11 +133,6 @@ int OCV(float V){
 
     }
 }
-
-weight() {
-
-}
-
 
 
 
