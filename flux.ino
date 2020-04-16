@@ -33,14 +33,16 @@ float SOHError = 0;
 float SOCA = 1;
 float SOCB = SOCA;
 float DODA = 0;
-float DODB = DODA;
+float DODB = 0;
 float voltageA = 0;
 float currentA = 0;
 float voltageB = 0;
 float currentB = 0;
+float sample;
 unsigned long firstSample;
 unsigned long secondSample;
-const unsigned long period = 10;
+const unsigned long period = 1000;
+int samplePeriod = 10;
 float nd = 0.80;//Coefficent of discharge assumption with peukert's law, should be tested in matlab and real-life
 float nc = 0.80;//Coefficient of charge assumption, should be tested in matlab and real-life
 
@@ -66,11 +68,15 @@ void setup() {
   
   voltageA = getVoltage();
   currentA = getCurrent();
-  SOCA = getOCV(voltageA);
+  SOCA = getOCV(voltageA)*100;
+  Serial.println(SOCA);
 
   SOHError = (ocv - voltageA)/(ocv - vLimit);
-  SOH = (short) (1 - (((cRated * SOHError)/cRated)*100));
+  Serial.println(SOHError);
+  SOH = (100 - (((cRated * SOHError)/cRated)*100));
+  Serial.println(SOH);
   DODA = SOH - SOCA;
+  Serial.println(DODA);
   
   firstSample = millis();
   
@@ -85,50 +91,57 @@ void loop() {
   Serial.print("Differential: "); Serial.print(adsI.readADC_Differential_0_1()); Serial.print("("); Serial.print(((adsI.readADC_Differential_0_1()*0.125F)*1000.0F/0.75F)); Serial.println("mA)");
   delay(500);
   */
-  secondSample = millis();
+
+  voltageB = getVoltage();
+  currentB = getCurrent();
   
-  if (secondSample - firstSample >= period)  //test whether the period has elapsed
-  {
-   voltageB = getVoltage();
-   currentB = getCurrent();
+   int i=0; 
    
-        if(currentB > 0){
-            printValues(voltageB, currentB, discharging(voltageB, currentA, currentB), SOH);
+   while(i < period){
+      secondSample = millis();
+      if(secondSample - firstSample >= samplePeriod){
+         sample += getCurrent()*0.001;
+         i += samplePeriod;
+         firstSample = secondSample;  //IMPORTANT to save the start time of the current LED brightness
+      }
+  }
+  
+
+   if(currentB > 0){
+            printValues(voltageB, currentB, discharging(voltageB, sample), SOH);
         }
         else if(currentB == 0){
-            printValues(voltageB, currentB, SOCA, SOH);
+            printValues(voltageB, currentB, SOCB, SOH);
         }
         else if(currentB < 0){
-            printValues(voltageB, currentB, charging(voltageB, currentA, currentB), SOH);
+            printValues(voltageB, currentB, charging(voltageB, currentB, sample), SOH);
         }
         else{
-            printValues(voltageB, currentB, SOCA, SOH);
+            printValues(voltageB, currentB, SOCB, SOH);
         }
         
-    firstSample = secondSample;  //IMPORTANT to save the start time of the current LED brightness
-  }
-
+  sample =  getCurrent()*0.001;
 
 }
 
 void printValues(float v, float i, float c, float h) {
   display.clearDisplay();
-  display.setTextSize(2);             // Normal 1:1 pixel scale
+  display.setTextSize(1);             // Normal 1:1 pixel scale
   display.setCursor(0,0);
   display.setTextColor(SSD1306_WHITE);        // Draw white text
-  display.print("V:"); display.println(v);
-  display.println(" SOH:"); display.println(h);
-  display.print("I:"); display.println(i);
-  display.println(" SOC:"); display.println(c);
+  display.print("Voltage:"); display.println(v); 
+  display.print("SOH:"); display.println(h);
+  display.print("Current:"); display.println(i); 
+  display.print("SOC:"); display.println(c);
   display.display();
 }
 
 float getVoltage() {//units: V
-    return ((adsV.readADC_SingleEnded(0)*3)/1000.0);
+    return (((adsV.readADC_SingleEnded(0)*3)/1000.0)*2.55);
 }
 
 float getCurrent() { //units: A
-    return ((((adsI.readADC_Differential_0_1())*0.125)/0.1)/1000.0);
+    return (((adsI.readADC_Differential_0_1())*0.125)/0.75);
 }
 
 /*
@@ -137,13 +150,16 @@ float getTemperature() {
 }
 */
 
-float discharging(float V, float Ia, float Ib){
+float discharging(float V, float S){
 
     if(V > vLimit) {
 
-        DODB = DODA + nd*(-(Ia+Ib)/(cRated*SOHError));
+        DODB = DODA + nd*(-S/(cRated*SOHError))*100; //Should be integral
+        Serial.print("Sample"); Serial.print(S);
+        Serial.println();
+        Serial.print("DODB"); Serial.print(DODB);
+        Serial.println();
         SOCB = SOH - DODB;
-        DODA = DODB;
         SOCA = SOCB;
         return SOCB;
     }
@@ -154,7 +170,7 @@ float discharging(float V, float Ia, float Ib){
     
 }
 
-float charging(float V, float Ia, float Ib){
+float charging(float V, float Ib, float S){
 
     if(V == ocv && Ib == 0) {
       
@@ -162,12 +178,20 @@ float charging(float V, float Ia, float Ib){
         return 1;
     }
     else {
-        DODB = DODA + nc*(-(Ia+Ib)/(cRated*SOHError));
+        DODB = DODA + nc*(-S/(cRated*SOHError))*100; //Should be integral
         SOCB = SOH - DODB;
-        DODA = DODB;
         SOCA = SOCB;
         return SOCB;
     }
+}
+
+double integral(double(*f)(double x), double a, double b, int n) {
+    double step = (b - a) / n;  // width of each small rectangle
+    double area = 0.0;  // signed area
+    for (int i = 0; i < n; i ++) {
+        area += f(a + (i + 0.5) * step) * step; // sum up each small rectangle
+    }
+    return area;
 }
 
 float getOCV(float V){
